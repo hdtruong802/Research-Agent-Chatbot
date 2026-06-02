@@ -19,6 +19,7 @@ from .send.tool import send_telegram
 from .lookup.tool import web_search
 from .troll_guard.tool import troll_guard
 from .security.tool import security_scan
+from .karpathy_guidelines.tool import karpathy_guidelines
 
 
 # NOTE (starter_v0): tool names here are intentionally vague. These keys are the
@@ -39,6 +40,7 @@ TOOL_FUNCTIONS = {
     "paper_text": get_arxiv_paper_text,
     "troll_guard": troll_guard,
     "security_scan": security_scan,
+    "karpathy_guidelines": karpathy_guidelines,
 }
 
 
@@ -55,4 +57,77 @@ def to_openai_tools(declarations: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "parameters": item.get("parameters", {"type": "object", "properties": {}}),
         },
     } for item in declarations]
+
+
+# Validation + safe call helpers
+_DECL_CACHE: dict[str, dict[str, Any]] | None = None
+
+
+def _load_declarations() -> list[dict[str, Any]]:
+    global _DECL_CACHE
+    if _DECL_CACHE is not None:
+        # return cached as list
+        return list(_DECL_CACHE.values())
+    path = Path(__file__).resolve().parents[1] / "artifacts" / "tools.yaml"
+    declarations = load_tool_declarations(path)
+    _DECL_CACHE = {item["name"]: item for item in declarations}
+    return declarations
+
+
+def validate_and_normalize_args(tool_name: str, args: dict[str, Any]) -> tuple[bool, dict[str, Any], str | None]:
+    """Validate required params and try light normalization.
+
+    Returns (ok, normalized_args, error_message).
+    """
+    global _DECL_CACHE
+    if _DECL_CACHE is None:
+        _load_declarations()
+    decl = _DECL_CACHE.get(tool_name) if _DECL_CACHE else None
+    if not decl:
+        return False, args, f"tool {tool_name!r} not declared"
+    params = decl.get("parameters", {}) or {}
+    required = set(params.get("required", []))
+    props = params.get("properties", {})
+    normalized: dict[str, Any] = {}
+    # check required
+    missing = [name for name in required if name not in args or args.get(name) is None or args.get(name) == ""]
+    if missing:
+        return False, args, f"missing required params: {', '.join(missing)}"
+    # basic type normalization
+    for key, value in (args or {}).items():
+        if key not in props:
+            normalized[key] = value
+            continue
+        schema = props[key]
+        typ = schema.get("type")
+        if typ == "integer":
+            try:
+                normalized[key] = int(value)
+            except Exception:
+                normalized[key] = value
+        elif typ == "boolean":
+            if isinstance(value, bool):
+                normalized[key] = value
+            else:
+                sval = str(value).lower()
+                normalized[key] = sval in ("1", "true", "yes", "y")
+        else:
+            # string or other
+            normalized[key] = value
+    return True, normalized, None
+
+
+def call_tool_safe(name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Validate args against tool declaration, call implementation, and return structured result."""
+    ok, normalized, err = validate_and_normalize_args(name, args or {})
+    if not ok:
+        return {"error": "validation_error", "message": err}
+    func = TOOL_FUNCTIONS.get(name)
+    if not func:
+        return {"error": "unknown_tool"}
+    try:
+        result = func(**normalized)
+    except Exception as exc:
+        return {"error": type(exc).__name__, "message": str(exc)}
+    return {"tool": name, "args": normalized, "result": result}
 

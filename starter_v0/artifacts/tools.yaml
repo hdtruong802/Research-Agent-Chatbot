@@ -238,3 +238,16 @@ tools:
           description: Limit number of findings returned.
           default: 25
       required: [text]
+
+  # ---------------- Karpathy guidelines tool ----------------
+  - name: karpathy_guidelines
+    description: "Trả về danh sách nguyên tắc lập trình theo Karpathy (Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution)."
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          default: ""
+          description: "Từ khóa lọc (ví dụ: checklist, principles)"
+      required: []
+
