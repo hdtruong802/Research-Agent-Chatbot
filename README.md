@@ -1,266 +1,106 @@
-# Day 04 Lab v2 — Research Agent Tool Eval
+# PHẦN A — Giới thiệu agent
 
-## Brief
+## A1. Agent này làm được gì
 
-Trong lab này, nhóm build một research agent nhỏ nhưng chạy thật. Agent nhận request của user, chọn tool, truyền arguments, chạy tool thật, lưu full JSON log, rồi dùng log đó để tối ưu prompt/tool declaration qua nhiều version.
-
-Điều cần học không phải là "chatbot trả lời hay". Điều cần học là vòng lặp evidence-driven:
-
-1. Chạy baseline bằng API thật.
-2. Đọc run JSON để biết sai tool, sai args, thiếu hỏi lại, hoặc gọi tool thừa.
-3. Sửa `artifacts/system_prompt.md` hoặc `artifacts/tools.yaml`.
-4. Chạy lại và ghi versioning.
-5. Tự viết thêm eval case để đo những lỗi nhóm quan tâm.
-6. Viết report dựa trên log thật, không dựa vào cảm giác.
-
-## Scope
-
-Nhiệm vụ bắt buộc:
-
-- Setup chạy được bằng provider thật.
-- Agent có ít nhất 5 tool trong `artifacts/tools.yaml`.
-- Chạy base eval.
-- Tối ưu ít nhất 3 vòng sau baseline: `v1`, `v2`, `v3`.
-- Ghi `artifacts/version_log.csv`.
-- Viết thêm ít nhất 1 tool mới (kèm `TOOL.md`, đăng ký trong `tools/__init__.py` và `tools.yaml`).
-- Tự viết thêm 10 eval case vào `data/eval_group.json`, trong đó 5 single turn và 5 multi turn.
-- Nộp run JSON, transcript JSON, report.
+Research agent cho bài toán theo dõi thông tin: tìm bài đăng theo tài khoản/chủ đề, tra web news, đọc URL cụ thể, phân tích sentiment mạng xã hội, format digest, và hỗ trợ gửi Telegram có bước xác nhận.
+Agent hỗ trợ cả single-turn và multi-turn (carry context, sửa yêu cầu theo turn mới nhất, và hỏi lại bằng `clarify` khi thiếu dữ liệu bắt buộc).
 
-Bonus:
+**Link dùng thử (deploy):**
 
-- Action tool `send`: có confirmation trước khi gửi.
-- Extra tools: `policy`, `papers`, `paper_text`.
-- UI: Streamlit hoặc Vercel.
+> URL: Local Streamlit app (run `streamlit run starter_v0/streamlit_app.py`). Public URL: (update if deployed)
 
-**Điểm thưởng (bonus point):** team nào làm **CẢ HAI** — dựng được UI **và** tự viết thêm hơn 3 tool mới (ngoài các tool có sẵn, kèm `TOOL.md` + đăng ký trong `tools/__init__.py` + `tools.yaml`) — sẽ được cộng điểm thưởng.
+## A2. Tool agent có
 
-## Folder Map
+| Tên tool | Làm được gì | Tool mới nhóm thêm? |
+|---|---|---|
+| clarify | **Hỏi** 1 câu để lấy thông tin còn thiếu (pause chờ user trả lời) | không |
+| timeline | **Lấy** bài đăng mới nhất theo một tài khoản cụ thể (`screenname`) | không |
+| social_search | **Tìm** bài đăng theo chủ đề/từ khóa (`Latest`/`Top`) | không |
+| lookup | **Tra cứu** web/news theo `timeframe` (day/week/month/year) | không |
+| fetch | **Đọc** nội dung từ một URL cụ thể (lấy markdown tóm tắt) | không |
+| format | **Định dạng** danh sách items thành digest markdown (brief/bullets/thread/sections) | không |
+| send | **Gửi** nội dung lên Telegram và **chỉ gửi khi** `confirmed=true` | không |
+| policy | **Tra cứu** policy nội bộ theo keyword/area | không |
+| papers | **Tìm** paper arXiv theo query | không |
+| paper_text | **Trích** text từ paper arXiv (tải PDF và extract) | không |
+| sentiment_analysis | **Phân tích** sentiment (positive/neutral/negative) từ bài đăng theo chủ đề | có |
+| troll_guard | **Phát hiện** câu hỏi troll/spam/abuse và **gợi ý** câu trả lời redirect an toàn | có |
+| security_scan | **Quét & che** (redact) secrets/API keys trong text trước khi chia sẻ | có |
+| karpathy_guidelines | **Áp** guideline “Karpathy-style” để review/đề xuất code change an toàn | có |
 
-```text
-starter_v0/
-  agent.py                    # one-shot model -> tool calls -> tool execution
-  chat.py                     # interactive chat, multi-round tools, transcript JSON
-  run_eval.py                 # eval routing + args, writes runs/*.json
-  versioning.py               # prompt/tool hash
-  artifacts/
-    system_prompt.md          # student edits
-    tools.yaml                # student edits
-    version_log.csv           # student fills
-    REPORT.md                 # final report template
-  data/
-    eval_base.json            # fixed base eval, do not edit the cases
-    eval_group.json           # team adds at least 5 cases
-    eval_research_extension.json
-  tools/
-    README.md                 # tool folder contract
-    <tool_name>/
-      TOOL.md                 # frontmatter + notes
-      tool.py                 # self-contained implementation
-  company_policy/             # local markdown KB for bonus policy tool
-  providers/                  # OpenRouter/OpenAI/Anthropic/Gemini adapters
-  scripts/preflight_provider.py
-  samples/                    # mock format examples (transcript, run-analysis, version_log)
-```
+## A3. Câu hỏi mẫu để thử
 
-## Tool Tracks
+1. Tweet mới nhất nói về ông chú Chum là gì?
+2. Tin tức AI hôm nay có gì nổi bật? (chỉ lấy web news)
+3. Tóm tắt bài này giúp mình: https://openai.com/index/introducing-gpt-4-1/
+4. Mọi người có thái độ như thế nào đối với bài hát mới của Sơn Tùng MTP? (phân tích sắc thái social)
+5. Đăng bản tin này lên Telegram giúp mình. (kiểm tra agent có hỏi xác nhận trước khi gửi)
 
-Phần mô tả dưới đây tóm tắt mỗi tool *làm gì*. Việc xác định *khi nào dùng* tool nào là phần nhóm tự định nghĩa trong prompt và tool declaration.
+---
 
-Core tools:
+# PHẦN B — Chi tiết / Bằng chứng
 
-- `clarify`: gửi một câu hỏi cho người dùng và chờ lượt trả lời tiếp theo.
-- `timeline`: lấy bài đăng gần đây của một tài khoản (`screenname`).
-- `social_search`: tìm bài đăng theo từ khóa (`search_type`: Latest/Top).
-- `lookup`: tìm trên web (có `topic` general/news và `timeframe`).
-- `fetch`: đọc nội dung một URL.
-- `format`: trình bày các item đã có thành markdown digest.
+## B1. Version Evidence
 
-Bonus tools:
+Fill from `artifacts/version_log.csv` and `runs/*.json`.
 
-- `send`: gửi text lên Telegram channel (chỉ gửi khi `confirmed=true`).
-- `policy`: tìm trong company policy markdown nội bộ.
-- `papers`: tìm paper trên arXiv.
-- `paper_text`: tải PDF arXiv và trích text cục bộ.
+| Version | Changed Artifact | Hypothesis | Metric Before | Metric After | Run File |
+|---|---|---|---:|---:|---|
+| v0 | baseline | Establish baseline metrics |  | case=0.65 \| routing=0.75 \| args=0.65 \| multiturn=1.00 | `runs/v0_B_base_openrouter_20260602T125539472901.json` |
+| v1 | `system_prompt.md` | If missing required args then call `clarify` before any other tool | case=0.65 \| routing=0.75 \| args=0.65 \| multiturn=1.00 | case=0.80 \| routing=0.85 \| args=0.80 \| multiturn=1.00 | `runs/v1_B_base_openrouter_20260602T135204192946.json` |
+| v2 | `system_prompt.md` | Enforce clarify + confirmation boundary while still allowing multi-tool execution | case=0.80 \| routing=0.85 \| args=0.80 \| multiturn=1.00 | case=0.85 \| routing=0.90 \| args=0.85 \| multiturn=1.00 | `runs/v2_B_base_openrouter_20260602T141356926142.json` |
+| v3 | `tools.yaml` | Clearer tool boundary descriptions reduce wrong-boundary and missing-info errors | case=0.85 \| routing=0.90 \| args=0.85 \| multiturn=1.00 | case=0.80 \| routing=0.95 \| args=0.80 \| multiturn=1.00 | `runs/v3_B_base_openrouter_20260602T142718955510.json` |
 
-Mỗi tool nằm trong thư mục riêng dưới `starter_v0/tools/<tool_name>/`.
+## B2. Failure Analysis
 
-## ⚠️ Nếu nhóm đổi tên tool: phải đồng bộ
+Use actual failures from `results[*].result.failures`.
 
-Eval chấm theo **đúng tên tool**. Nếu nhóm đổi tên một tool cho rõ nghĩa hơn (ví dụ `send` → `send_telegram`), **phải đổi đồng bộ ở CẢ những nơi sau**, nếu không eval báo lỗi `not declared in tools.yaml` hoặc chấm sai mọi case:
+| Case ID | Failure Type | Actual Tool Calls | What Failed | Fix |
+|---|---|---|---|---|
+| R03_web_news_routing (v0) | wrong_tool | `lookup(query="AI news", topic="news", timeframe="day")` | `query` expected `"AI"`, got `"AI news"` | Add routing rule: for AI news use `query="AI"` exactly (avoid adding “news” suffix). |
+| R08_out_of_scope (v0) | out_of_scope | `send(text=...)` | Case expects **no tool** (refuse/redirect), but agent called an action tool | Add “out-of-scope ⇒ no tool” rule; add stronger send guardrail: never call `send` unless user explicitly requested publish + confirmed. |
+| R10_missing_handle (v0) | missing_info | `timeline(screenname="sama")` | Case expects `clarify` (missing account), but agent guessed a handle and skipped clarify | Add “missing required input ⇒ call `clarify` exactly once” rule; remove “guess famous handle” unless user explicitly names the account. |
 
-1. `artifacts/tools.yaml` — field `name`
-2. `tools/__init__.py` — key trong `TOOL_FUNCTIONS`
-3. `data/eval_base.json` **và** `data/eval_research_extension.json` — `expect.tool_calls[].name`
+## B3. Team Eval Cases
 
-(Không cần đổi tên hàm trong `tools/<folder>/tool.py` — chỉ cần key trỏ đúng hàm. Không sửa *nội dung case* trong `eval_base.json`, chỉ đổi tên tool nếu nhóm rename.)
+List the 10 cases added to `data/eval_group.json` (5 single turn + 5 multi turn).
 
-## Setup
+| Case ID | What It Tests | Expected Tool/Behavior | Result |
+|---|---|---|---|
+| G01_sentiment_song_sontung | Route đúng sang tool sentiment mới | `sentiment_analysis(query="bai hat moi Son Tung MTP")` | FAIL (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G02_fetch_specific_url | Có URL rõ ràng thì fetch trực tiếp | `fetch(url=...)` | PASS (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G03_top_tweets_openai | Nhận diện “top” cho social search | `social_search(query="OpenAI", search_type="Top")` | PASS (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G04_web_news_robotics_today | News + today ⇒ timeframe=day | `lookup(query="robotics", topic="news", timeframe="day")` | PASS (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G05_no_tool_math | Câu không cần truy xuất ⇒ no_tool | `no_tool=true` | PASS (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G06_multiturn_missing_handle_then_fill | Carry info nhiều turn (handle + limit) | `timeline(screenname="sama", limit=3)` | PASS (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G07_multiturn_switch_to_web_only | User thu hẹp scope (bỏ Twitter) | `lookup(query="OpenAI", topic="news", timeframe="day")` | PASS (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G08_multiturn_confirm_before_send | Chỉ send sau confirm | `send(confirmed=true)` | FAIL (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G09_multiturn_sentiment_refine_query | Refine query + limit cho sentiment | `sentiment_analysis(query="bai moi Son Tung MTP", limit=30)` | FAIL (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
+| G10_multiturn_parallel_then_narrow | Ban đầu song song, sau đó chỉ web | `lookup(query="AI", topic="news", timeframe="day")` | FAIL (`runs/v5_B_group_openrouter_20260602T154917749224.json`) |
 
-Run from `starter_v0/`:
+## B4. Live Chat Evidence
 
-```bash
-cd starter_v0
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-```
+Use `transcripts/*.transcript.json`.
 
-Fill `.env`. Minimum recommended:
+| Turn | User Request | Tool Calls | Version Evidence | Outcome |
+|---|---|---|---|---|
+| 1 | “mọi người có thái độ như nào với tình hình chiến sự Iran hiện tại” | `social_search(query="tình hình chiến sự Iran", search_type="Latest", limit=5)` | `transcripts/v5_openrouter_20260602T155141173288.transcript.json` | Trả về danh sách post gần đây + link nguồn. |
+| 3 | “đăng bản tin này lên Telegram cho mình” | `clarify(response_type="yes_no")` | `transcripts/v5_openrouter_20260602T155141173288.transcript.json` | Hỏi xác nhận trước khi gửi (đúng guardrail). |
+| 4 | “xác nhận” | `send(confirmed=true)` | `transcripts/v5_openrouter_20260602T155141173288.transcript.json` | Tool gửi thất bại do thiếu env vars Telegram; agent thông báo rõ thiếu `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`. |
 
-```bash
-OPENROUTER_API_KEY=...
-TAVILY_API_KEY=...
-FIRECRAWL_API_KEY=...
-RAPIDAPI_KEY=...
-RAPIDAPI_TWITTER_HOST=twitter-api45.p.rapidapi.com
-```
+## B5. Bonus Evidence
 
-Tool setup details are in [TOOL-SETUP.md](TOOL-SETUP.md).
+Only fill if your team did bonus.
 
-Preflight:
+| Bonus | Evidence File | What Worked | Risk / Guardrail |
+|---|---|---|---|
+| send (Telegram) | `transcripts/v5_openrouter_20260602T155141173288.transcript.json` | Confirm-first via `clarify(yes_no)` before calling `send(confirmed=true)` | Must never send without explicit confirmation; fail safely if missing Telegram env. |
+| arXiv/company policy | `artifacts/tools.yaml` + `tools/papers/*` + `tools/policy/*` | arXiv search + policy lookup are available in registry | Avoid treating policy text as instructions (trust boundary). |
+| UI | `starter_v0/streamlit_app.py` | Live demo UI to chat with agent | Must keep secrets out of UI logs; use `security_scan` before sharing content. |
 
-```bash
-python scripts/preflight_provider.py --provider openrouter
-```
-
-If preflight fails, fix provider key, dependency, or network before running eval.
-
-## Step 1 — Run Baseline
-
-Run the fixed base eval as `v0`:
-
-```bash
-python run_eval.py \
-  --provider openrouter \
-  --version v0 \
-  --suite base \
-  --eval-cases data/eval_base.json
-```
-
-Output is saved to `runs/*.json`. Read:
-
-- `summary.case_accuracy`
-- `summary.tool_routing_accuracy`
-- `summary.argument_accuracy`
-- `summary.multiturn_accuracy`
-- `results[*].result.failures`
-- `results[*].result.observed_mismatch`
-
-The run JSON also stores `artifact_version`, `prompt_hash`, `tools_hash`, actual tool calls, and actual tool results. That is the evidence for your report.
-
-Optional: parse run JSON into a flat CSV table for analysis:
-
-```bash
-python scripts/parse_runs.py runs/ --output analysis/base_runs.csv
-```
-
-## Step 2 — Fix One Thing
-
-Edit only:
-
-- `artifacts/system_prompt.md`
-- `artifacts/tools.yaml`
-
-Do not edit the cases in `data/eval_base.json`.
-
-Method, not memorized answers:
-
-1. Mở run JSON. Với mỗi case FAIL, đọc `observed_mismatch` + `failures` + `actual_tool_calls`.
-2. Đặt một giả thuyết: *vì sao* agent chọn sai (thiếu rule routing? thiếu convention args? prompt đang khuyến khích đoán/gửi/làm-một-bước?).
-3. Sửa **một** thứ (một dòng prompt hoặc một description) để kiểm chứng giả thuyết đó.
-4. Chạy lại, so metric trước/sau. Nếu không cải thiện, đổi giả thuyết.
-
-Đổi một giả thuyết mỗi lần để version log có ý nghĩa.
-
-## Step 3 — Run 3 Optimization Versions
-
-Run at least three improved versions:
-
-```bash
-python run_eval.py --provider openrouter --version v1 --suite base --eval-cases data/eval_base.json
-python run_eval.py --provider openrouter --version v2 --suite base --eval-cases data/eval_base.json
-python run_eval.py --provider openrouter --version v3 --suite base --eval-cases data/eval_base.json
-```
-
-After each run, fill `artifacts/version_log.csv`:
-
-```text
-version,author,changed_artifact,artifact_version,prompt_hash,tools_hash,reason,hypothesis,metric_before,metric_after,run_file
-```
-
-Use hashes and run file paths from the eval output.
-
-## Step 4 — Add Team Eval
-
-Add at least 5 cases to `data/eval_group.json`.
-
-Each case needs:
-
-- `id`
-- `phase`: always `"B"`
-- `query` or `turns`
-- `failure_type`: one of `wrong_tool`, `wrong_arg_value`, `wrong_boundary`, `unnecessary_tool`, `out_of_scope`, `missing_info`
-- `expect`: `tool_calls` or `no_tool`
-- `metadata.what_it_tests`
-
-Run:
-
-```bash
-python run_eval.py \
-  --provider openrouter \
-  --version v3 \
-  --suite group \
-  --eval-cases data/eval_group.json
-```
-
-Optional extension eval:
-
-```bash
-python run_eval.py \
-  --provider openrouter \
-  --version v3 \
-  --suite extension \
-  --eval-cases data/eval_research_extension.json
-```
-
-## Step 5 — Chat Live
-
-`chat.py` is for live multi-round interaction. It logs every turn to `transcripts/*.transcript.json`.
-
-```bash
-python chat.py --provider openrouter --version v3
-```
-
-Try at least 3 live turns, for example:
-
-- A normal research request.
-- A request thiếu thông tin (không nói rõ account/URL), rồi lượt sau bổ sung.
-- Một request "đăng/gửi bản tin lên Telegram" — quan sát agent có hành động ngay hay hỏi lại trước, rồi tự quyết định hành vi nào mới đúng và sửa prompt cho khớp.
-
-## Submit
-
-Submit `starter_v0/` with:
-
-- `artifacts/system_prompt.md`
-- `artifacts/tools.yaml`
-- `artifacts/version_log.csv` with at least `v0`, `v1`, `v2`, `v3`
-- `artifacts/REPORT.md`
-- `data/eval_group.json` with at least 5 team cases
-- `runs/*.json`
-- `analysis/*.csv` if you parsed run logs
-- `transcripts/*.transcript.json`
-- code changes if your team added or changed tools/UI
-
-Do not submit `.env` or API keys.
-
-## Timeline 4h
-
-- 0:00-0:25 setup, keys, preflight.
-- 0:25-0:55 run baseline, inspect JSON.
-- 0:55-1:45 improve prompt/tools for v1-v2.
-- 1:45-2:15 write team eval cases.
-- 2:15-2:45 run v3 + group eval.
-- 2:45-3:20 chat live + transcript.
-- 3:20-3:50 report.
-- 3:50-4:00 package and final sanity check.
+## B6. Reflection
+
+- Which fixes belonged in `system_prompt.md`?
+- Which fixes belonged in `tools.yaml`?
+- Which failure needed manual review instead of automatic grading?
+- What would you improve next?
