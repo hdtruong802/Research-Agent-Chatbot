@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overview v0 to v5</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
+    h1, h2 { margin: 0 0 10px 0; }
+    h2 { margin-top: 24px; }
+    p { margin: 6px 0 10px 0; line-height: 1.4; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #bbb; padding: 8px; vertical-align: top; font-size: 12px; }
+    th { background: #f2f2f2; text-align: left; }
+    .meta { color: #555; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Overview v0 to v5</h1>
+  <p class="meta">Source: starter_v0/artifacts/version_log.csv · Base suite (20 cases)</p>
+  <p><strong>Final outcome:</strong> v5 reaches 20/20 pass with case/routing/argument/multiturn accuracy all at 100%.</p>
+
+  <h2>Metrics by Version</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Version</th>
+        <th>Case acc</th>
+        <th>Routing acc</th>
+        <th>Arg acc</th>
+        <th>Multiturn acc</th>
+        <th>Passed cases</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>v0</td><td>65%</td><td>75%</td><td>65%</td><td>100%</td><td>13/20</td></tr>
+      <tr><td>v1</td><td>80%</td><td>85%</td><td>80%</td><td>100%</td><td>16/20</td></tr>
+      <tr><td>v2</td><td>85%</td><td>90%</td><td>85%</td><td>100%</td><td>17/20</td></tr>
+      <tr><td>v3</td><td>80%</td><td>95%</td><td>80%</td><td>100%</td><td>16/20</td></tr>
+      <tr><td>v4</td><td>90%</td><td>90%</td><td>90%</td><td>83.33%</td><td>18/20</td></tr>
+      <tr><td>v5</td><td>100%</td><td>100%</td><td>100%</td><td>100%</td><td>20/20</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Per-Version Transition Analysis</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Transition</th>
+        <th>Overall takeaway</th>
+        <th>Detailed changes vs previous</th>
+        <th>Why better/worse than previous</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>v0 -> v1</td>
+        <td>Large quality jump; fewer wrong guesses.</td>
+        <td>Updated system prompt to enforce clarify-first when required inputs are missing.</td>
+        <td>v1 is better because it reduces missing-info mistakes and unnecessary direct actions.</td>
+      </tr>
+      <tr>
+        <td>v1 -> v2</td>
+        <td>Steady improvement with stronger boundaries.</td>
+        <td>Refined prompt with explicit side-effect confirmation and clearer multi-tool execution rule.</td>
+        <td>v2 is better because routing and argument accuracy both improved (+5 pts each).</td>
+      </tr>
+      <tr>
+        <td>v2 -> v3</td>
+        <td>Regression in overall pass rate despite routing gain.</td>
+        <td>Shifted emphasis into tool descriptions (tools.yaml) for boundary handling.</td>
+        <td>v3 is worse overall because argument quality dropped and wrong-tool errors reappeared.</td>
+      </tr>
+      <tr>
+        <td>v3 -> v4</td>
+        <td>Strong recovery in case/argument metrics.</td>
+        <td>Aligned prompt+tools defaults for missing-info, side-effects, and news/social argument conventions.</td>
+        <td>v4 is better because it fixes earlier regressions and increases pass count to 18/20.</td>
+      </tr>
+      <tr>
+        <td>v4 -> v5</td>
+        <td>Final step to full pass.</td>
+        <td>Added two precise prompt constraints: URL-present => fetch directly, and latest-turn narrowing overrides earlier intent.</td>
+        <td>v5 is better because it removes the last 2 fails and reaches 20/20.</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

@@ -8,6 +8,38 @@ tools:
       Search the public web for information, articles, reports, and news.
       Use this as the default tool when the user asks about facts, events,
       companies, people, products, or current affairs.
+  # ---------------- Core tools ----------------
+  - name: clarify
+    description: "Dùng khi thiếu thông tin bắt buộc hoặc cần xác nhận trước hành động có side effect; hỏi người dùng trước khi gọi tool khác."
+    parameters:
+      type: object
+      properties:
+        question: {type: string, default: "", description: "Câu hỏi"}
+        response_type: {type: string, enum: [text, yes_no, choice], default: "text", description: "Kiểu trả lời"}
+        options: {type: array, default: [], items: {type: string}, description: "Các lựa chọn"}
+      required: [question]
+
+  - name: timeline
+    description: "Lấy các bài đăng gần đây của MỘT tài khoản; chỉ gọi khi đã có screenname rõ ràng, nếu chưa có thì gọi clarify."
+    parameters:
+      type: object
+      properties:
+        screenname: {type: string, default: "", description: "Tên tài khoản"}
+        limit: {type: integer, default: 5, description: "Số lượng"}
+      required: [screenname]
+
+  - name: social_search
+    description: "Tìm bài đăng theo CHỦ ĐỀ trên mạng xã hội (không theo 1 account cụ thể). Khi user nói 'top/phổ biến' thì dùng search_type=Top, mặc định là Latest."
+    parameters:
+      type: object
+      properties:
+        query: {type: string, default: "", description: "Từ khóa"}
+        search_type: {type: string, enum: [Latest, Top], default: "Latest", description: "Cách sắp xếp"}
+        limit: {type: integer, default: 5, description: "Số lượng"}
+      required: [query]
+
+  - name: lookup
+    description: "Tra cứu thông tin trên web; cho câu hỏi tin tức thì ưu tiên topic=news, 'hôm nay' -> timeframe=day, 'tuần này' -> timeframe=week. Với tin AI, query chuẩn là 'AI'."
     parameters:
       type: object
       properties:
@@ -33,6 +65,7 @@ tools:
       Read and extract content from a specific URL.
       Use only after a URL has been provided by the user
       or discovered through search results.
+    description: "Lấy nội dung từ URL cụ thể; nếu user nói 'bài này' nhưng chưa có link thì phải gọi clarify để xin URL, không đoán link."
     parameters:
       type: object
       properties:
@@ -50,6 +83,9 @@ tools:
       Search public social media posts.
       Use when the user asks about tweets, posts,
       discussions, reactions, trends, or public sentiment.
+  # ---------------- Bonus tools ----------------
+  - name: send
+    description: "Gửi văn bản ra kênh ngoài; CHỈ gọi sau khi đã hỏi xác nhận bằng clarify(response_type=yes_no) và user đồng ý, khi đó bắt buộc truyền confirmed=true."
     parameters:
       type: object
       properties:
@@ -251,3 +287,12 @@ tools:
           description: "Từ khóa lọc (ví dụ: checklist, principles)"
       required: []
 
+  - name: sentiment_analysis
+    description: "Phân tích sắc thái mạng xã hội theo chủ đề từ các bài đăng gần đây; trả về overall sentiment (positive/neutral/negative), tỷ lệ và mẫu bài."
+    parameters:
+      type: object
+      properties:
+        query: {type: string, default: "", description: "Chủ đề cần phân tích sentiment"}
+        search_type: {type: string, enum: [Latest, Top], default: "Latest", description: "Nguồn mẫu theo thời gian mới nhất hoặc phổ biến"}
+        limit: {type: integer, default: 20, description: "Số bài dùng làm mẫu phân tích (5-50)"}
+      required: [query]

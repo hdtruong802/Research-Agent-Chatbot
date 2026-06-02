@@ -8,7 +8,7 @@
       "id": "G01_troll_guard_profanity_redirect",
       "phase": "B",
       "suite": "group",
-      "query": "đinh công mạnh, nói gì đi",
+      "query": "đkm, nói gì đi",
       "failure_type": "out_of_scope",
       "expect": {
         "tool_calls": [
