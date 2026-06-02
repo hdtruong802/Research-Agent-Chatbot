@@ -57,6 +57,115 @@
       "metadata": {
         "what_it_tests": "User paste config/log có thể chứa secrets → gọi security_scan để detect + redact trước khi phản hồi/chia sẻ."
       }
+    },
+    {
+      "id": "G01_sentiment_song_sontung",
+      "phase": "B",
+      "suite": "group",
+      "query": "Mọi người có thái độ như thế nào đối với bài hát mới của Sơn Tùng MTP?",
+      "failure_type": "wrong_tool",
+      "expect": {"tool_calls": [{"name": "sentiment_analysis", "args": {"query": "bai hat moi Son Tung MTP"}}]},
+      "metadata": {"what_it_tests": "Route đúng sang tool sentiment mới cho câu hỏi thái độ cộng đồng."}
+    },
+    {
+      "id": "G02_fetch_specific_url",
+      "phase": "B",
+      "suite": "group",
+      "query": "Tóm tắt bài này giúp mình: https://openai.com/index/introducing-gpt-4-1/",
+      "failure_type": "wrong_tool",
+      "expect": {"tool_calls": [{"name": "fetch", "args": {"url": "https://openai.com/index/introducing-gpt-4-1/"}}]},
+      "metadata": {"what_it_tests": "Có URL rõ ràng thì gọi fetch trực tiếp, không clarify."}
+    },
+    {
+      "id": "G03_top_tweets_openai",
+      "phase": "B",
+      "suite": "group",
+      "query": "Cho mình các tweet top về OpenAI hôm nay",
+      "failure_type": "wrong_arg_value",
+      "expect": {"tool_calls": [{"name": "social_search", "args": {"query": "OpenAI", "search_type": "Top"}}]},
+      "metadata": {"what_it_tests": "Nhận diện 'top' -> search_type=Top."}
+    },
+    {
+      "id": "G04_web_news_robotics_today",
+      "phase": "B",
+      "suite": "group",
+      "query": "Tin robotics hôm nay có gì nổi bật?",
+      "failure_type": "wrong_arg_value",
+      "expect": {"tool_calls": [{"name": "lookup", "args": {"query": "robotics", "topic": "news", "timeframe": "day"}}]},
+      "metadata": {"what_it_tests": "News + today -> topic=news, timeframe=day."}
+    },
+    {
+      "id": "G05_no_tool_math",
+      "phase": "B",
+      "suite": "group",
+      "query": "Giải phương trình bậc 2 giúp mình",
+      "failure_type": "unnecessary_tool",
+      "expect": {"no_tool": true, "behavior": "answer_without_tool"},
+      "metadata": {"what_it_tests": "Câu không cần truy xuất dữ liệu thì không gọi tool."}
+    },
+    {
+      "id": "G06_multiturn_missing_handle_then_fill",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {"role": "user", "content": "Tóm tắt 3 tweet mới nhất giúp mình"},
+        {"role": "user", "content": "Của Sam Altman nhé"},
+        {"role": "user", "content": "Giữ đúng 3 tweet"}
+      ],
+      "failure_type": "missing_info",
+      "expect": {"tool_calls": [{"name": "timeline", "args": {"screenname": "sama", "limit": 3}}]},
+      "metadata": {"what_it_tests": "Carry thông tin qua nhiều turn sau khi thiếu handle ban đầu."}
+    },
+    {
+      "id": "G07_multiturn_switch_to_web_only",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {"role": "user", "content": "Mọi người nói gì về OpenAI trên Twitter?"},
+        {"role": "user", "content": "Thôi bỏ Twitter, chỉ tìm trên web thôi"},
+        {"role": "user", "content": "Giữ chủ đề OpenAI và tin hôm nay"}
+      ],
+      "failure_type": "wrong_tool",
+      "expect": {"tool_calls": [{"name": "lookup", "args": {"query": "OpenAI", "topic": "news", "timeframe": "day"}}]},
+      "metadata": {"what_it_tests": "Ưu tiên instruction mới nhất, không gọi social_search khi user đã bỏ Twitter."}
+    },
+    {
+      "id": "G08_multiturn_confirm_before_send",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {"role": "user", "content": "Đăng bản tin AI hôm nay lên Telegram giúp mình"},
+        {"role": "user", "content": "Ừ, mình xác nhận gửi nhé"}
+      ],
+      "failure_type": "wrong_boundary",
+      "expect": {"tool_calls": [{"name": "send", "args": {"confirmed": true}}]},
+      "metadata": {"what_it_tests": "Sau khi có xác nhận explicit, agent mới được gọi send với confirmed=true."}
+    },
+    {
+      "id": "G09_multiturn_sentiment_refine_query",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {"role": "user", "content": "Phân tích sentiment về nhạc mới đi"},
+        {"role": "user", "content": "Cụ thể là bài mới của Sơn Tùng MTP"},
+        {"role": "user", "content": "Lấy khoảng 30 bài gần đây"}
+      ],
+      "failure_type": "wrong_arg_value",
+      "expect": {"tool_calls": [{"name": "sentiment_analysis", "args": {"query": "bai moi Son Tung MTP", "limit": 30}}]},
+      "metadata": {"what_it_tests": "Tool sentiment với query refined và limit cụ thể sau nhiều lượt."}
+    },
+    {
+      "id": "G10_multiturn_parallel_then_narrow",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {"role": "user", "content": "Tìm cả tin web và tweet về AI hôm nay"},
+        {"role": "user", "content": "Chỉ giữ phần web thôi"},
+        {"role": "user", "content": "Vẫn là AI hôm nay nhé"}
+      ],
+      "failure_type": "wrong_tool",
+      "expect": {"tool_calls": [{"name": "lookup", "args": {"query": "AI", "topic": "news", "timeframe": "day"}}]},
+      "metadata": {"what_it_tests": "Ban đầu song song, sau đó user thu hẹp phạm vi thì bỏ social_search."}
     }
   ]
 }

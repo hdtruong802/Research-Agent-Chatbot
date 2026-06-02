@@ -17,9 +17,12 @@ from .policy.tool import search_company_policy
 from .social_search.tool import search_tweets
 from .send.tool import send_telegram
 from .lookup.tool import web_search
+<<<<<<< HEAD
 from .troll_guard.tool import troll_guard
 from .security.tool import security_scan
 from .karpathy_guidelines.tool import karpathy_guidelines
+=======
+>>>>>>> b3739af (first commit)
 from .sentiment_analysis.tool import analyze_social_sentiment
 
 
@@ -39,9 +42,12 @@ TOOL_FUNCTIONS = {
     "policy": search_company_policy,
     "papers": arxiv_search,
     "paper_text": get_arxiv_paper_text,
+<<<<<<< HEAD
     "troll_guard": troll_guard,
     "security_scan": security_scan,
     "karpathy_guidelines": karpathy_guidelines,
+=======
+>>>>>>> b3739af (first commit)
     "sentiment_analysis": analyze_social_sentiment,
 }
 
