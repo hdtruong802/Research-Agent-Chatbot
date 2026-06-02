@@ -106,13 +106,29 @@ details > summary { opacity: 0.9; }
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking…"):
-            result = run_model_tool_loop(
-                provider=provider,
-                messages=messages,
-                tools=openai_tools,
-                model=(model.strip() or None),
-                max_tool_rounds=int(max_tool_rounds),
-            )
+            try:
+                result = run_model_tool_loop(
+                    provider=provider,
+                    messages=messages,
+                    tools=openai_tools,
+                    model=(model.strip() or None),
+                    max_tool_rounds=int(max_tool_rounds),
+                )
+            except RuntimeError as exc:
+                msg = str(exc)
+                if "Missing API key env var" in msg:
+                    st.error(msg)
+                    st.info(
+                        "Bạn cần set API key tương ứng với provider đã chọn.\n\n"
+                        "- openrouter → `OPENROUTER_API_KEY`\n"
+                        "- openai → `OPENAI_API_KEY`\n"
+                        "- anthropic → `ANTHROPIC_API_KEY`\n"
+                        "- gemini → `GEMINI_API_KEY`\n\n"
+                        "Nếu chạy local: điền vào `starter_v0/.env` rồi restart app.\n"
+                        "Nếu chạy Streamlit Cloud: vào **App settings → Secrets** và thêm các biến môi trường."
+                    )
+                    return
+                raise
         assistant_text = result.get("assistant_text") or ""
         st.markdown(assistant_text)
 
