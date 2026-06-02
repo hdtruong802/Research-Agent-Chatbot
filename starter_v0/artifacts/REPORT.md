@@ -7,7 +7,10 @@
 ## Team
 
 - Team: 2 zone 8
-- Members: Truong, Linh, Ha
+- Members: 
+2A202600567-Nguyễn Hồ Diệu Linh
+2A202600612_Trần Hoàng Hà
+2A202600552-Hoàng Đức Trường
 - Provider/model: OpenRouter / openai/gpt-4o-mini
 
 ---
