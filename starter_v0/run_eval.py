@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import re
 from datetime import datetime
@@ -259,6 +260,65 @@ def print_table(results: list[dict[str, Any]], summary: dict[str, Any]) -> None:
         print(f"{key}: {value}")
 
 
+def parse_artifact_hashes(artifact_version: str) -> tuple[str, str]:
+    prompt_hash = ""
+    tools_hash = ""
+    for part in artifact_version.split("+"):
+        if part.startswith("p"):
+            prompt_hash = part[1:]
+        elif part.startswith("t"):
+            tools_hash = part[1:]
+    return prompt_hash, tools_hash
+
+
+def append_version_log_entry(
+    path: Path,
+    version: str,
+    artifact_version: str,
+    run_file: str,
+    author: str,
+    changed_artifact: str,
+    reason: str | None = None,
+    hypothesis: str | None = None,
+    metric_before: str | None = None,
+    metric_after: str | None = None,
+) -> None:
+    headers = [
+        "version",
+        "author",
+        "changed_artifact",
+        "artifact_version",
+        "prompt_hash",
+        "tools_hash",
+        "reason",
+        "hypothesis",
+        "metric_before",
+        "metric_after",
+        "run_file",
+    ]
+    prompt_hash, tools_hash = parse_artifact_hashes(artifact_version)
+    row = {
+        "version": version,
+        "author": author,
+        "changed_artifact": changed_artifact,
+        "artifact_version": artifact_version,
+        "prompt_hash": prompt_hash,
+        "tools_hash": tools_hash,
+        "reason": reason or "",
+        "hypothesis": hypothesis or "",
+        "metric_before": metric_before or "",
+        "metric_after": metric_after or "",
+        "run_file": run_file,
+    }
+    file_exists = path.exists()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=headers)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Research Agent live evals.")
     parser.add_argument("--phase", choices=["B"], default="B")
@@ -270,6 +330,12 @@ def main() -> None:
     parser.add_argument("--tools", type=Path, default=ARTIFACTS_DIR / "tools.yaml")
     parser.add_argument("--eval-cases", type=Path, default=DATA_DIR / "eval_base.json")
     parser.add_argument("--runs-dir", type=Path, default=ROOT / "runs")
+    parser.add_argument("--version-log", type=Path, default=None, help="Optional CSV file to append a summary entry.")
+    parser.add_argument("--author", default="team", help="Author for version_log entry")
+    parser.add_argument("--changed-artifact", default="baseline", help="Changed artifact description for version_log entry")
+    parser.add_argument("--reason", default="", help="Reason for this change")
+    parser.add_argument("--hypothesis", default="", help="Hypothesis for this change")
+    parser.add_argument("--metric-before", default="", help="Metric before this change")
     args = parser.parse_args()
 
     system_prompt = args.system_prompt.read_text(encoding="utf-8")
@@ -356,6 +422,21 @@ def main() -> None:
     print_table(results, summary)
     print(f"\nArtifact version: {artifact_version.artifact_version}")
     print(f"\nSaved: {out_path}")
+
+    if args.version_log:
+        append_version_log_entry(
+            path=args.version_log,
+            version=args.version,
+            artifact_version=artifact_version.artifact_version,
+            run_file=str(out_path.relative_to(ROOT)),
+            author=args.author,
+            changed_artifact=args.changed_artifact,
+            reason=args.reason,
+            hypothesis=args.hypothesis,
+            metric_before=args.metric_before,
+            metric_after=str(summary.get("case_accuracy", "")),
+        )
+        print(f"Appended version log entry to {args.version_log}")
 
 
 if __name__ == "__main__":

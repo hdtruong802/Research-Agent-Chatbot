@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from providers.base import Provider, ToolCall
-from tools import TOOL_FUNCTIONS
+from tools import TOOL_FUNCTIONS, call_tool_safe
 
 
 @dataclass
@@ -39,13 +39,7 @@ class ResearchAgent:
         )
         results: list[dict[str, Any]] = []
         for call in response.tool_calls:
-            func = TOOL_FUNCTIONS.get(call.name)
-            if not func:
-                results.append({"tool": call.name, "error": "unknown_tool"})
-                continue
-            try:
-                result = func(**call.args)
-            except Exception as exc:  # keep eval robust; failures are evidence
-                result = {"error": type(exc).__name__, "message": str(exc)}
-            results.append({"tool": call.name, "args": call.args, "result": result})
+            # Use safe caller with validation to reduce wrong-arg and missing-param failures
+            res = call_tool_safe(call.name, call.args or {})
+            results.append(res)
         return AgentRun(text=response.text, tool_calls=response.tool_calls, tool_results=results)
