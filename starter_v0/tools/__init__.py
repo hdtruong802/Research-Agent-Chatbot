@@ -20,6 +20,7 @@ from .lookup.tool import web_search
 from .troll_guard.tool import troll_guard
 from .security.tool import security_scan
 from .karpathy_guidelines.tool import karpathy_guidelines
+from .sentiment_analysis.tool import analyze_social_sentiment
 
 
 # NOTE (starter_v0): tool names here are intentionally vague. These keys are the
@@ -41,6 +42,7 @@ TOOL_FUNCTIONS = {
     "troll_guard": troll_guard,
     "security_scan": security_scan,
     "karpathy_guidelines": karpathy_guidelines,
+    "sentiment_analysis": analyze_social_sentiment,
 }
 
 
