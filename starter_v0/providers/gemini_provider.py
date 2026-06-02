@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import time
 from typing import Any
 
 from providers.base import ModelResponse, ToolCall
@@ -106,11 +108,27 @@ class GeminiProvider:
             config_kwargs["tools"] = [types.Tool(function_declarations=declarations)]
 
         client = genai.Client(api_key=api_key)
-        resp = client.models.generate_content(
-            model=model or self.default_model,
-            contents=contents,
-            config=types.GenerateContentConfig(**config_kwargs),
-        )
+        last_exc: Exception | None = None
+        for attempt in range(6):
+            try:
+                resp = client.models.generate_content(
+                    model=model or self.default_model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(**config_kwargs),
+                )
+                break
+            except Exception as exc:  # provider SDK raises rich error types; keep it robust
+                last_exc = exc
+                text = str(exc)
+                is_rate_limited = ("RESOURCE_EXHAUSTED" in text) or re.search(r"\b429\b", text) is not None
+                if not is_rate_limited or attempt >= 5:
+                    raise
+                match = re.search(r"retryDelay':\s*'(\d+)s'", text)
+                delay_s = int(match.group(1)) if match else (15 * (attempt + 1))
+                time.sleep(min(max(delay_s, 1), 90))
+        else:
+            assert last_exc is not None
+            raise last_exc
 
         text_parts: list[str] = []
         calls: list[ToolCall] = []

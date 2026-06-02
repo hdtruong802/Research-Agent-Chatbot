@@ -1,118 +1,199 @@
-# starter_v0 — tool declarations (intentionally vague).
-# Names and descriptions here are a rough first draft. Routing rules, name->handle
-# mapping, arg conventions (news/timeframe/Top), and the send-confirmation boundary
-# are NOT spelled out anywhere yet. Your job is to make these declarations + the
-# system prompt good enough that the agent routes correctly on the eval.
-#
-# If you rename a tool, keep the name in sync across:
-#   this file  ->  tools/__init__.py (TOOL_FUNCTIONS)  ->  data/eval_base.json + data/eval_research_extension.json
 tools:
-  # ---------------- Core tools ----------------
-  - name: clarify
-    description: "Gửi một câu hỏi cho người dùng."
-    parameters:
-      type: object
-      properties:
-        question: {type: string, default: "", description: "Câu hỏi"}
-        response_type: {type: string, enum: [text, yes_no, choice], default: "text", description: "Kiểu trả lời"}
-        options: {type: array, default: [], items: {type: string}, description: "Các lựa chọn"}
-      required: [question]
-
-  - name: timeline
-    description: "Lấy các bài đăng gần đây."
-    parameters:
-      type: object
-      properties:
-        screenname: {type: string, default: "", description: "Tên tài khoản"}
-        limit: {type: integer, default: 5, description: "Số lượng"}
-      required: [screenname]
-
-  - name: social_search
-    description: "Tìm trên mạng xã hội."
-    parameters:
-      type: object
-      properties:
-        query: {type: string, default: "", description: "Từ khóa"}
-        search_type: {type: string, enum: [Latest, Top], default: "Latest", description: "Cách sắp xếp"}
-        limit: {type: integer, default: 5, description: "Số lượng"}
-      required: [query]
+  # ==============================
+  # Information Gathering
+  # ==============================
 
   - name: lookup
-    description: "Tra cứu thông tin trên internet."
+    description: |
+      Search the public web for information, articles, reports, and news.
+      Use this as the default tool when the user asks about facts, events,
+      companies, people, products, or current affairs.
     parameters:
       type: object
       properties:
-        query: {type: string, default: "", description: "Truy vấn"}
-        topic: {type: string, enum: [general, news], default: "general", description: "Phân loại"}
-        timeframe: {type: string, enum: [day, week, month, year], default: "week", description: "Khoảng thời gian"}
-        max_results: {type: integer, default: 5, description: "Số kết quả"}
+        query:
+          type: string
+          description: Search query
+        topic:
+          type: string
+          enum: [general, news]
+          default: general
+        timeframe:
+          type: string
+          description: Optional time range (day/week/month/year). Omit this field if not needed.
+          enum: [day, week, month, year]
+          default: week
+        max_results:
+          type: integer
+          default: 5
       required: [query]
 
   - name: fetch
-    description: "Lấy nội dung từ một địa chỉ."
+    description: |
+      Read and extract content from a specific URL.
+      Use only after a URL has been provided by the user
+      or discovered through search results.
     parameters:
       type: object
       properties:
-        url: {type: string, default: "", description: "Địa chỉ"}
+        url:
+          type: string
+          description: URL to read
       required: [url]
 
-  - name: format
-    description: "Trình bày dữ liệu đã có thành văn bản."
-    parameters:
-      type: object
-      properties:
-        items:
-          type: array
-          default: []
-          description: "Danh sách item"
-          items:
-            type: object
-            properties:
-              title: {type: string}
-              url: {type: string}
-              source: {type: string}
-              summary: {type: string}
-              section: {type: string}
-        template: {type: string, enum: [brief, sections, bullets, thread, daily_ai_vn], default: "sections", description: "Khuôn"}
-        headline: {type: string, default: "", description: "Tiêu đề"}
-      required: [items, template]
+  # ==============================
+  # Social Media Research
+  # ==============================
 
-  # ---------------- Bonus tools ----------------
-  - name: send
-    description: "Gửi một đoạn văn bản đi."
+  - name: social_search
+    description: |
+      Search public social media posts.
+      Use when the user asks about tweets, posts,
+      discussions, reactions, trends, or public sentiment.
     parameters:
       type: object
       properties:
-        text: {type: string, default: "", description: "Nội dung"}
-        confirmed: {type: boolean, default: false, description: "Cờ xác nhận"}
-      required: [text]
-
-  - name: policy
-    description: "Tìm trong tài liệu nội bộ."
-    parameters:
-      type: object
-      properties:
-        query: {type: string, default: "", description: "Truy vấn"}
-        policy_area: {type: string, enum: [all, ai_research, source_citation, data_privacy, external_publishing, tool_usage], default: "all", description: "Nhóm"}
-        top_k: {type: integer, default: 3, description: "Số mục"}
+        query:
+          type: string
+        search_type:
+          type: string
+          enum: [Latest, Top]
+          default: Top
+        limit:
+          type: integer
+          default: 5
       required: [query]
 
-  - name: papers
-    description: "Tìm bài báo khoa học."
+  - name: timeline
+    description: |
+      Retrieve recent posts from a specific social media account.
+      Prefer a real handle (e.g. sama, elonmusk). If the user only provides a name,
+      ask for clarification unless the handle is well-known and low-risk.
     parameters:
       type: object
       properties:
-        query: {type: string, default: "", description: "Từ khóa"}
-        max_results: {type: integer, default: 5, description: "Số lượng"}
-        sort_by: {type: string, enum: [relevance, lastUpdatedDate, submittedDate], default: "relevance", description: "Sắp xếp"}
+        screenname:
+          type: string
+        limit:
+          type: integer
+          default: 5
+      required: [screenname]
+
+  # ==============================
+  # Research Papers
+  # ==============================
+
+  - name: papers
+    description: |
+      Search academic papers from research repositories.
+      Use when the user requests scientific evidence,
+      academic references, literature reviews,
+      or state-of-the-art research.
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+        max_results:
+          type: integer
+          default: 5
+        sort_by:
+          type: string
+          enum:
+            - relevance
+            - lastUpdatedDate
+            - submittedDate
+          default: relevance
       required: [query]
 
   - name: paper_text
-    description: "Lấy nội dung text của một bài báo."
+    description: |
+      Retrieve text content from a research paper.
+      Use only after an arXiv URL or identifier is known.
     parameters:
       type: object
       properties:
-        arxiv_url: {type: string, default: "", description: "ID hoặc địa chỉ"}
-        max_pages: {type: integer, default: 5, description: "Số trang"}
-        max_chars: {type: integer, default: 8000, description: "Số ký tự"}
+        arxiv_url:
+          type: string
+        max_pages:
+          type: integer
+          default: 5
+        max_chars:
+          type: integer
+          default: 8000
       required: [arxiv_url]
+
+  # ==============================
+  # Internal Policy
+  # ==============================
+
+  - name: policy
+    description: |
+      Search internal policies and operating instructions.
+      Use when the user asks about compliance,
+      publishing rules, citations, privacy,
+      tool usage, or research workflow.
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+        policy_area:
+          type: string
+          enum:
+            - all
+            - ai_research
+            - source_citation
+            - data_privacy
+            - external_publishing
+            - tool_usage
+          default: all
+        top_k:
+          type: integer
+          default: 3
+      required: [query]
+
+  # ==============================
+  # User Interaction
+  # ==============================
+
+  - name: clarify
+    description: |
+      Ask the user for missing information only when
+      the task cannot be completed safely or accurately
+      with reasonable assumptions.
+      Avoid unnecessary questions.
+    parameters:
+      type: object
+      properties:
+        question:
+          type: string
+        response_type:
+          type: string
+          enum: [text, yes_no, choice]
+          default: text
+        options:
+          type: array
+          items:
+            type: string
+      required: [question]
+
+  # ==============================
+  # Outbound Actions
+  # ==============================
+
+  - name: send
+    description: |
+      Send or publish content.
+      This tool must only be used after the user
+      has explicitly approved the exact content.
+      Never use this tool based on assumptions.
+    parameters:
+      type: object
+      properties:
+        text:
+          type: string
+        confirmed:
+          type: boolean
+          description: Must be true before execution
+      required: [text, confirmed]
