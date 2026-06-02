@@ -1,3 +1,5 @@
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/46fd0356-10c7-4357-88ab-3ec0ce362603" />
+
 # PHẦN A — Giới thiệu agent
 
 ## A1. Agent này làm được gì
